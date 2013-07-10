@@ -25,6 +25,7 @@ public class Proguard
     private Boolean filterMavenDescriptor;
     private Boolean filterManifest;
     private Boolean includeJdkLibs;
+    private Boolean skipInjarDetection;
 
     public Boolean isSkip()
     {
@@ -69,5 +70,10 @@ public class Proguard
     public Boolean isIncludeJdkLibs()
     {
         return includeJdkLibs;
+    }
+    
+    public Boolean isSkipInjarDetection()
+    {
+        return skipInjarDetection;
     }
 }

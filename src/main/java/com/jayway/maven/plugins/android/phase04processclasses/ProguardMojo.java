@@ -333,8 +333,8 @@ public class ProguardMojo extends AbstractAndroidMojo
 
         collectInputFiles( commands );
 
-        commands.add( "-outjars" );
-        commands.add( "'" + project.getBuild().getDirectory() + File.separator + PROGUARD_OBFUSCATED_JAR + "'" );
+//        commands.add( "-outjars" );
+//        commands.add( "'" + project.getBuild().getDirectory() + File.separator + PROGUARD_OBFUSCATED_JAR + "'" );
 
         commands.add( "-dump" );
         commands.add( "'" + proguardDir + File.separator + "dump.txt'" );
@@ -387,13 +387,16 @@ public class ProguardMojo extends AbstractAndroidMojo
         // dependencies and declare it to be a library dependency instead
         skipArtifact( "commons-logging", "commons-logging", true );
 
-        collectProgramInputFiles();
-        for ( ProGuardInput injar : inJars )
+        if ( false ) 
         {
-            commands.add( "-injars" );
-            commands.add( injar.toCommandLine() );
+            collectProgramInputFiles();
+            for ( ProGuardInput injar : inJars )
+            {
+                commands.add( "-injars" );
+                commands.add( injar.toCommandLine() );
+            }
         }
-
+        
         collectLibraryInputFiles();
         for ( ProGuardInput libraryjar : libraryJars )
         {
