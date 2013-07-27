@@ -847,8 +847,10 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
             {
                 ++ testFailureCount;
             }
-            getLog().info( deviceLogLinePrefix + INDENT + INDENT + status.name() + ":" + testIdentifier.toString() );
-            getLog().info( deviceLogLinePrefix + INDENT + INDENT + trace );
+            
+            String indent = INDENT + INDENT + INDENT;
+            getLog().error( deviceLogLinePrefix + indent + status.name() + ": " + testIdentifier.toString() );
+            getLog().error( deviceLogLinePrefix + indent + trace );
 
             if ( parsedCreateReport )
             {
@@ -882,7 +884,7 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
         public void testEnded( TestIdentifier testIdentifier, Map<String, String> testMetrics )
         {
             getLog().info( deviceLogLinePrefix 
-                    + String.format( "%1$s%1$sEnd [%2$d/%3$d]: %4$s", INDENT, testRunCount, testCount,
+                    + String.format( "%1$s%1$s  End [%2$d/%3$d]: %4$s", INDENT, testRunCount, testCount,
                     testIdentifier.toString() ) );
             logMetrics( testMetrics );
 
@@ -969,21 +971,29 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
                 String newline = "\r\n";
                 // if there is message like
                 // junit.junit.framework.AssertionFailedError ... there is no message
-                int messageEnd = trace.indexOf( newline );
+                int messageEnd = Math.max( trace.indexOf( newline ), trace.indexOf( "\n" ) );
                 boolean hasMessage = ! trace.startsWith( "junit." ) && messageEnd > 0;
                 if ( hasMessage )
                 {
-                    int messageStart = trace.indexOf( ":" ) + 2;
+                    int colonSpacePos = trace.indexOf( ": " );
+                    int colonPos = trace.indexOf( ":" );
+                    int messageStart = colonSpacePos != -1 ? colonSpacePos + 2 : colonPos + 1;
+                    
                     if ( messageStart > messageEnd )
                     {
                         messageEnd = trace.indexOf( newline + "at" );
                         // match start of stack trace "\r\nat org.junit....."
-                        if ( messageStart > messageEnd )
-                        {
-                            //':' wasn't found in message but in stack trace
-                            messageStart = 0;
-                        }
                     }
+                    if ( messageStart > messageEnd )
+                    {
+                        //':' wasn't found in message but in stack trace
+                        messageStart = 0;
+                    }
+                    if ( messageEnd == -1 ) 
+                    {
+                        messageEnd = trace.length();
+                    }
+                    
                     return trace.substring( messageStart, messageEnd );
                 }
                 else
@@ -1075,10 +1085,16 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
          */
         private void logMetrics( Map<String, String> metrics )
         {
+            String indent = INDENT + INDENT + INDENT + INDENT;
+            
             for ( Map.Entry<String, String> entry : metrics.entrySet() )
             {
-                getLog().info( deviceLogLinePrefix + INDENT + INDENT + entry.getKey() + ": " + entry.getValue() );
+                getLog().info( deviceLogLinePrefix + indent + entry.getKey() + ": " + entry.getValue() );
             }
+            
+            long now = new Date().getTime();
+            double seconds = ( now - currentTestCaseStartTime ) / 1000.0;
+            getLog().info( deviceLogLinePrefix + indent + "Duration: " + timeFormatter.format( seconds ) + " seconds" );
         }
 
         /**
