@@ -16,27 +16,17 @@
  */
 package com.jayway.maven.plugins.android;
 
-import com.android.ddmlib.AdbCommandRejectedException;
-import com.android.ddmlib.IDevice;
-import com.android.ddmlib.ShellCommandUnresponsiveException;
-import com.android.ddmlib.TimeoutException;
-import com.android.ddmlib.testrunner.IRemoteAndroidTestRunner;
-import com.android.ddmlib.testrunner.ITestRunListener;
-import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
-import com.android.ddmlib.testrunner.TestIdentifier;
-import com.jayway.maven.plugins.android.asm.AndroidTestFinder;
-import com.jayway.maven.plugins.android.common.DeviceHelper;
-import com.jayway.maven.plugins.android.configuration.Test;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.project.MavenProject;
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
+import static com.android.ddmlib.testrunner.ITestRunListener.TestFailure.ERROR;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -49,17 +39,29 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
 
-import static com.android.ddmlib.testrunner.ITestRunListener.TestFailure.ERROR;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.project.MavenProject;
+import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+
+import com.android.ddmlib.AdbCommandRejectedException;
+import com.android.ddmlib.IDevice;
+import com.android.ddmlib.ShellCommandUnresponsiveException;
+import com.android.ddmlib.TimeoutException;
+import com.android.ddmlib.testrunner.IRemoteAndroidTestRunner;
+import com.android.ddmlib.testrunner.ITestRunListener;
+import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
+import com.android.ddmlib.testrunner.TestIdentifier;
+import com.jayway.maven.plugins.android.asm.AndroidTestFinder;
+import com.jayway.maven.plugins.android.common.DeviceHelper;
+import com.jayway.maven.plugins.android.configuration.Test;
 
 /**
  * AbstractInstrumentationMojo implements running the instrumentation
@@ -676,6 +678,7 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
         private static final String TAG_TESTSUITE = "testsuite";
         private static final String ATTR_TESTSUITE_ERRORS = "errors";
         private static final String ATTR_TESTSUITE_FAILURES = "failures";
+        private static final String ATTR_TESTSUITE_SKIPPED = "skipped";
         private static final String ATTR_TESTSUITE_HOSTNAME = "hostname";
         private static final String ATTR_TESTSUITE_NAME = "name";
         private static final String ATTR_TESTSUITE_TESTS = "tests";
@@ -694,9 +697,14 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
 
         private static final String TAG_ERROR = "error";
         private static final String TAG_FAILURE = "failure";
+        private static final String TAG_SKIPPED = "skipped";
         private static final String ATTR_MESSAGE = "message";
         private static final String ATTR_TYPE = "type";
+        
+        private static final String TAG_SYSTEM_OUT = "system-out";
+        private static final String TAG_SYSTEM_ERR = "system-err";
 
+        private static final String SKIPPED_METRIC_KEY = "Skipped";
 
         /**
          * time format for the output of milliseconds in seconds in the xml file *
@@ -707,6 +715,7 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
         private int testRunCount = 0;
         private int testFailureCount = 0;
         private int testErrorCount = 0;
+        private int testSkippedCount = 0;
         private String testRunFailureCause = null;
 
         private final MavenProject project;
@@ -895,7 +904,15 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
             getLog().info( deviceLogLinePrefix 
                     + String.format( "%1$s%1$s  End [%2$d/%3$d]: %4$s", INDENT, testRunCount, testCount,
                     testIdentifier.toString() ) );
+            
             logMetrics( testMetrics );
+            
+            boolean skipped = testMetrics.containsKey( SKIPPED_METRIC_KEY );
+            
+            if ( skipped )
+            {
+                ++ testSkippedCount;
+            }
 
             if ( parsedCreateReport )
             {
@@ -908,6 +925,28 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
                 double seconds = ( now - currentTestCaseStartTime ) / 1000.0;
                 timeAttr.setValue( timeFormatter.format( seconds ) );
                 testCaseAttributes.setNamedItem( timeAttr );
+                
+                if ( skipped )
+                {
+                    Node skippedNode;
+                    NamedNodeMap skippedAttributes;
+                    
+                    skippedNode = junitReport.createElement( TAG_SKIPPED );
+                    skippedAttributes = skippedNode.getAttributes();
+
+                    Attr msgAttr = junitReport.createAttribute( ATTR_MESSAGE );
+                    msgAttr.setValue( testMetrics.get( SKIPPED_METRIC_KEY ) );
+                    skippedAttributes.setNamedItem( msgAttr );
+                    
+                    currentTestCaseNode.appendChild( skippedNode );
+                }
+                
+                Node systemOutNode;
+                systemOutNode = junitReport.createElement( TAG_SYSTEM_OUT );
+
+                systemOutNode.setTextContent( testMetrics.toString() );
+                
+                currentTestCaseNode.appendChild( systemOutNode );
             }
         }
 
@@ -920,7 +959,9 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
             }
             getLog().info( INDENT + "Tests run: " + testRunCount
                     + ( testRunCount < testCount ? " (of " + testCount + ")" : "" )
-                    + ",  Failures: " + testFailureCount + ",  Errors: " + testErrorCount );
+                    + ",  Failures: " + testFailureCount + ",  Errors: " + testErrorCount
+                    + ", Skipped: " + testSkippedCount );
+            
             if ( parsedCreateReport )
             {
                 NamedNodeMap testSuiteAttributes = testSuiteNode.getAttributes();
@@ -936,6 +977,10 @@ public abstract class AbstractInstrumentationMojo extends AbstractAndroidMojo
                 Attr testErrorsAttr = junitReport.createAttribute( ATTR_TESTSUITE_ERRORS );
                 testErrorsAttr.setValue( Integer.toString( testErrorCount ) );
                 testSuiteAttributes.setNamedItem( testErrorsAttr );
+                
+                Attr testSkippedAttr = junitReport.createAttribute( ATTR_TESTSUITE_SKIPPED );
+                testSkippedAttr.setValue( Integer.toString( testSkippedCount ) );
+                testSuiteAttributes.setNamedItem( testSkippedAttr );
 
                 Attr timeAttr = junitReport.createAttribute( ATTR_TESTSUITE_TIME );
                 timeAttr.setValue( timeFormatter.format( elapsedTime / 1000.0 ) );
