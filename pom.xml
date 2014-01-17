@@ -73,10 +73,13 @@
         <url>https://travis-ci.org/jayway/maven-android-plugin</url>
     </ciManagement>
     <distributionManagement>
+        <repository>
+            <id>cloud.archiva.internal</id>
+            <url>http://archiva.cliff.cloudburrito.com:8080/archiva/repository/internal/</url>
+        </repository>
         <snapshotRepository>
-            <id>oss.sonatype.org-jayway-snapshots</id>
-            <name>Jayway OpenSource SNAPSHOTs on Sonatype.org</name>
-            <url>http://oss.sonatype.org/content/repositories/jayway-snapshots/</url>
+            <id>cloud.archiva.snapshots</id>
+            <url>http://archiva.cliff.cloudburrito.com:8080/archiva/repository/snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
     <licenses>
