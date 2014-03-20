@@ -16,30 +16,10 @@
  */
 package com.jayway.maven.plugins.android.phase01generatesources;
 
-import com.android.builder.internal.SymbolLoader;
-import com.android.builder.internal.SymbolWriter;
-import com.android.manifmerger.ManifestMerger;
-import com.android.manifmerger.MergerLog;
-import com.android.utils.StdLogger;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
-import com.jayway.maven.plugins.android.AbstractAndroidMojo;
-import com.jayway.maven.plugins.android.CommandExecutor;
-import com.jayway.maven.plugins.android.ExecutionException;
-import com.jayway.maven.plugins.android.common.AetherHelper;
-
-import com.jayway.maven.plugins.android.configuration.BuildConfigConstant;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.codehaus.plexus.archiver.ArchiverException;
-import org.codehaus.plexus.archiver.UnArchiver;
-import org.codehaus.plexus.archiver.zip.ZipUnArchiver;
-import org.codehaus.plexus.logging.Logger;
-import org.codehaus.plexus.logging.console.ConsoleLogger;
-import org.codehaus.plexus.util.AbstractScanner;
+import static com.jayway.maven.plugins.android.common.AndroidExtension.AAR;
+import static com.jayway.maven.plugins.android.common.AndroidExtension.APK;
+import static com.jayway.maven.plugins.android.common.AndroidExtension.APKLIB;
+import static com.jayway.maven.plugins.android.common.AndroidExtension.APKSOURCES;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -53,10 +33,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.jayway.maven.plugins.android.common.AndroidExtension.APK;
-import static com.jayway.maven.plugins.android.common.AndroidExtension.APKLIB;
-import static com.jayway.maven.plugins.android.common.AndroidExtension.AAR;
-import static com.jayway.maven.plugins.android.common.AndroidExtension.APKSOURCES;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
+import org.codehaus.plexus.archiver.ArchiverException;
+import org.codehaus.plexus.archiver.UnArchiver;
+import org.codehaus.plexus.archiver.zip.ZipUnArchiver;
+import org.codehaus.plexus.logging.Logger;
+import org.codehaus.plexus.logging.console.ConsoleLogger;
+import org.codehaus.plexus.util.AbstractScanner;
+
+import com.android.builder.internal.SymbolLoader;
+import com.android.builder.internal.SymbolWriter;
+import com.android.manifmerger.ManifestMerger;
+import com.android.manifmerger.MergerLog;
+import com.android.utils.StdLogger;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import com.jayway.maven.plugins.android.AbstractAndroidMojo;
+import com.jayway.maven.plugins.android.CommandExecutor;
+import com.jayway.maven.plugins.android.ExecutionException;
+import com.jayway.maven.plugins.android.common.AetherHelper;
+import com.jayway.maven.plugins.android.configuration.BuildConfigConstant;
 
 /**
  * Generates <code>R.java</code> based on resources specified by the <code>resources</code> configuration parameter.
@@ -182,10 +182,12 @@ public class GenerateSourcesMojo extends AbstractAndroidMojo
 
         // If the current POM isn't an Android-related POM, then don't do
         // anything.  This helps work with multi-module projects.
+        /*
         if ( ! isCurrentProjectAndroid() )
         {
             return;
         }
+        */
 
         try
         {
